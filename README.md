@@ -1,6 +1,6 @@
 # 🧪 Dominó de Química Orgânica
 
-![Protótipo pelo figma](https://www.figma.com/design/EbQO31uuK0yGDlaYnXwUbE/Apar%C3%AAncia---domin%C3%B3?m=auto&t=CWX8eATJcmZJ4YJw-6)
+![Badge em Desenvolvimento](https://img.shields.io/badge/Status-Em%20Desenvolvimento-blue)
 ![Badge Licença](https://img.shields.io/badge/Licen%C3%A7a-MIT-green)
 
 Um projeto pedagógico e interativo que transforma o clássico jogo de dominó em uma ferramenta de aprendizado para a Química Orgânica. O objetivo é conectar fórmulas estruturais, nomes IUPAC e funções orgânicas de forma divertida e dinâmica.
