@@ -58,10 +58,22 @@ O jogo valida o conhecimento através de três pilares de associação:
 
 ---
 
+## Dependências 
+
+* **Corrigir bugs:** O jogo apresenta bugs do tipo das peças compatíveis não se encaxarem
+* **Retirar tutorial:** A borda verde atrapalha no desenvolvimento do aluno
+* **Revisar as regras:** Conferir as regras no jogo e ver se está de acordo
+* **Ajeitar direcionamento:** peças horizontais e verticais
+* **Controle:** Fazer com que o jogador possa mover a peça até o local ao invés de ser automático
+
+---
+
 ## 🚀 Como Executar o Projeto
 
 ### Pré-requisitos
 Antes de começar, você vai precisar ter instalado em sua máquina o [Git](https://git-scm.com) e o [Python](https://www.python.org/) (ou Node.js, dependendo do seu projeto).
+
+---
 
 ### Passo a Passo
 
