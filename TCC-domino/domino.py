@@ -1,5 +1,6 @@
 import pygame
 import sys
+import os
 import random
 import threading
 import time
@@ -32,7 +33,7 @@ C_PLAYER     = (60, 140, 200)
 C_TURN_IND   = (255, 200, 60)
 
 # Tamanho das pedras (reduzido para caber várias por linha na tela estreita)
-TILE_W, TILE_H = 40, 76
+TILE_W, TILE_H = 48, 92
 DOT_R = 4
 CORNER_R = 6
 
@@ -55,6 +56,38 @@ font_md = _font("segoeui", 17)
 font_sm = _font("segoeui", 13)
 font_xl = _font("segoeui", 30, bold=True)
 
+# Nomes por extenso de cada valor (0 a 6) — usados na "metade palavra" das
+# novas peças (ver regras: metade das peças usa pontos, metade usa a
+# palavra por extenso, e o encaixe é sempre ponto-N com palavra-N).
+WORD_NAMES = ["zero", "um", "dois", "três", "quatro", "cinco", "seis"]
+
+_word_font_cache: dict = {}
+
+
+def _get_word_font(size: int):
+    if size not in _word_font_cache:
+        _word_font_cache[size] = _font("segoeui", size, bold=True)
+    return _word_font_cache[size]
+
+
+def _fit_word_font(text: str, max_w: int, max_h: int):
+    """Escolhe a maior fonte que ainda cabe no espaço (max_w x max_h)."""
+    for size in (20, 18, 16, 14, 12, 11, 10, 9, 8, 7, 6):
+        f = _get_word_font(size)
+        tw, th = f.size(text)
+        if tw <= max_w and th <= max_h:
+            return f
+    return _get_word_font(6)
+
+
+def _end_label(end):
+    """Formata uma ponta (kind, value): mostra o que está exposto e, com
+    uma seta, o que é preciso pra encaixar ali (tipo oposto, mesmo número)."""
+    kind, value = end
+    if kind == 'pip':
+        return f"{value}pt→{WORD_NAMES[value]}"
+    return f"{WORD_NAMES[value]}→{value}pt"
+
 DOT_POSITIONS = {
     0: [],
     1: [(0.5, 0.5)],
@@ -65,52 +98,114 @@ DOT_POSITIONS = {
     6: [(0.25, 0.2), (0.75, 0.2), (0.25, 0.5), (0.75, 0.5), (0.25, 0.8), (0.75, 0.8)],
 }
 
+# ── Imagens das faces (pontos 0-6 e palavras zero-seis) ─────────────────────────
+# Usa os PNGs em assets/face_0.png .. face_6.png (pontos) e
+# assets/word_0.png .. word_6.png (palavra por extenso). Se a pasta/arquivo
+# não existir por algum motivo, cai de volta no desenho manual (círculos ou
+# texto renderizado com fonte), então o jogo nunca quebra por falta de imagem.
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+_img_raw_cache: dict = {}     # (prefix, value) -> Surface original carregada do PNG
+_img_scaled_cache: dict = {}  # (prefix, value, w, h) -> Surface já redimensionada
+
+
+def _load_img_raw(prefix: str, value: int):
+    key = (prefix, value)
+    if key not in _img_raw_cache:
+        path = os.path.join(ASSETS_DIR, f"{prefix}_{value}.png")
+        try:
+            img = pygame.image.load(path)
+            try:
+                img = img.convert_alpha()
+            except pygame.error:
+                pass  # ainda sem display inicializado; funciona sem convert_alpha
+            _img_raw_cache[key] = img
+        except (pygame.error, FileNotFoundError):
+            _img_raw_cache[key] = None  # marca como indisponível
+    return _img_raw_cache[key]
+
+
+def _get_scaled_img(prefix: str, value: int, w: int, h: int):
+    w = max(1, int(w)); h = max(1, int(h))
+    key = (prefix, value, w, h)
+    if key not in _img_scaled_cache:
+        raw = _load_img_raw(prefix, value)
+        if raw is None:
+            _img_scaled_cache[key] = None
+        else:
+            _img_scaled_cache[key] = pygame.transform.smoothscale(raw, (w, h))
+    return _img_scaled_cache[key]
+
 
 # ── Pedra ──────────────────────────────────────────────────────────────────────
 class Tile:
-    def __init__(self, a: int, b: int):
-        self.a = a
-        self.b = b
+    """
+    Nova pedra (14 valores = 7 números em pontos + 7 números por extenso):
+    toda pedra tem sempre um lado PIP (pontos, 0-6) e um lado WORD (palavra
+    por extenso, "zero".."seis"). Nunca ponto-ponto nem palavra-palavra.
+
+    Encaixe: um lado PIP com valor N só encosta num lado WORD de valor N
+    (e vice-versa) — "a peça com um ponto combina com a peça 'um'".
+
+    "Dupla"/carroça: pedra onde pip_value == word_value (ex: 3/três),
+    já que os dois lados representam o mesmo número.
+    """
+    def __init__(self, pip_value: int, word_value: int):
+        self.pip_value = pip_value    # 0-6, lado desenhado com pontinhos
+        self.word_value = word_value  # 0-6, lado desenhado com a palavra
         self.horizontal = False
-        self.flipped = False
+        self.flipped = False   # troca qual lado (pip/word) fica esquerda/direita
+
+    # Quando flipped=False: pip fica à esquerda, word fica à direita.
+    # Quando flipped=True: invertido.
+    @property
+    def left_kind(self):  return 'word' if self.flipped else 'pip'
+    @property
+    def right_kind(self): return 'pip' if self.flipped else 'word'
+    @property
+    def left_value(self): return self.word_value if self.flipped else self.pip_value
+    @property
+    def right_value(self): return self.pip_value if self.flipped else self.word_value
 
     @property
-    def left(self):  return self.b if self.flipped else self.a
-    @property
-    def right(self): return self.a if self.flipped else self.b
-    @property
-    def top(self):   return self.b if self.flipped else self.a
-    @property
-    def bottom(self):return self.a if self.flipped else self.b
-    @property
-    def is_double(self): return self.a == self.b
-    @property
-    def total(self): return self.a + self.b
+    def is_double(self):
+        """'Carroça': o número em pontos é igual ao número por extenso."""
+        return self.pip_value == self.word_value
 
-    def fits_left(self, value):
-        """Encaixa a pedra na PONTA ESQUERDA da mesa: o valor que já
-        conecta (igual a `value`) precisa ficar no lado DIREITO da pedra
-        (tocando a pedra anterior); o outro valor fica no lado ESQUERDO
-        e vira o novo número aberto/jogável."""
-        if self.b == value: self.flipped = False; return True  # right=b=value, left=a (novo aberto)
-        if self.a == value: self.flipped = True;  return True  # right=a=value, left=b (novo aberto)
+    @property
+    def total(self):
+        return self.pip_value + self.word_value
+
+    def fits_left(self, end_kind: str, end_value: int) -> bool:
+        """Encaixa a pedra na PONTA ESQUERDA da mesa: o lado que conecta
+        (de tipo OPOSTO ao `end_kind`, mesmo número) precisa ficar no lado
+        DIREITO desta pedra (tocando a pedra anterior); o outro lado fica
+        exposto à ESQUERDA como o novo fim aberto."""
+        if end_kind == 'pip' and self.word_value == end_value:
+            self.flipped = False   # right=word(=end_value) conecta; left=pip exposto
+            return True
+        if end_kind == 'word' and self.pip_value == end_value:
+            self.flipped = True    # right=pip(=end_value) conecta; left=word exposto
+            return True
         return False
 
-    def fits_right(self, value):
-        """Encaixa a pedra na PONTA DIREITA da mesa: o valor que já
-        conecta (igual a `value`) precisa ficar no lado ESQUERDO da pedra
-        (tocando a pedra anterior); o outro valor fica no lado DIREITO
-        e vira o novo número aberto/jogável."""
-        if self.a == value: self.flipped = False; return True  # left=a=value, right=b (novo aberto)
-        if self.b == value: self.flipped = True;  return True  # left=b=value, right=a (novo aberto)
+    def fits_right(self, end_kind: str, end_value: int) -> bool:
+        """Encaixa a pedra na PONTA DIREITA da mesa: o lado que conecta
+        fica no lado ESQUERDO desta pedra; o outro lado fica exposto à
+        DIREITA como o novo fim aberto."""
+        if end_kind == 'pip' and self.word_value == end_value:
+            self.flipped = True    # left=word(=end_value) conecta; right=pip exposto
+            return True
+        if end_kind == 'word' and self.pip_value == end_value:
+            self.flipped = False   # left=pip(=end_value) conecta; right=word exposto
+            return True
         return False
 
     def __repr__(self):
-        return f"[{self.a}|{self.b}]"
+        return f"[{self.pip_value}pt|{WORD_NAMES[self.word_value]}]"
 
 
 def draw_tile(surface, tile: Tile, x: int, y: int,
-              selected=False, playable=False, face_down=False, alpha=255):
+              selected=False, face_down=False, alpha=255):
     w = TILE_H if tile.horizontal else TILE_W
     h = TILE_W if tile.horizontal else TILE_H
 
@@ -120,8 +215,8 @@ def draw_tile(surface, tile: Tile, x: int, y: int,
     pygame.draw.rect(shadow, (0, 0, 0, 80), (4, 4, w, h), border_radius=CORNER_R)
     surface.blit(shadow, (x - 2, y - 2))
 
-    border_col = C_HIGHLIGHT if selected else (C_PLAYABLE if playable else C_BONE_DARK)
-    border_w   = 3 if (selected or playable) else 1
+    border_col = C_HIGHLIGHT if selected else C_BONE_DARK
+    border_w   = 3 if selected else 1
     pygame.draw.rect(surf, C_BONE, (0, 0, w, h), border_radius=CORNER_R)
     pygame.draw.rect(surf, border_col, (0, 0, w, h), border_w, border_radius=CORNER_R)
 
@@ -137,24 +232,43 @@ def draw_tile(surface, tile: Tile, x: int, y: int,
     if tile.horizontal:
         mx = w // 2
         pygame.draw.line(surf, C_DIVIDER, (mx, 4), (mx, h - 4), 2)
-        _draw_half(surf, tile.top if not tile.flipped else tile.bottom, 0, 0, mx, h)
-        _draw_half(surf, tile.bottom if not tile.flipped else tile.top, mx, 0, mx, h)
+        _draw_half(surf, tile.left_kind, tile.left_value, 0, 0, mx, h)
+        _draw_half(surf, tile.right_kind, tile.right_value, mx, 0, mx, h)
     else:
         my = h // 2
         pygame.draw.line(surf, C_DIVIDER, (4, my), (w - 4, my), 2)
-        _draw_half(surf, tile.top, 0, 0, w, my)
-        _draw_half(surf, tile.bottom, 0, my, w, my)
+        _draw_half(surf, tile.left_kind, tile.left_value, 0, 0, w, my)
+        _draw_half(surf, tile.right_kind, tile.right_value, 0, my, w, my)
 
     surf.set_alpha(alpha)
     surface.blit(surf, (x, y))
 
 
-def _draw_half(surf, value, ox, oy, w, h):
+def _draw_half(surf, kind, value, ox, oy, w, h):
+    """Desenha um lado da pedra: pontinhos (kind='pip') ou a palavra por
+    extenso (kind='word'), centralizado dentro da área (ox,oy,w,h).
+    Usa as imagens PNG de assets/; se não encontrar, desenha na mão."""
     pad = 5
-    for rx, ry in DOT_POSITIONS.get(value, []):
-        cx = int(ox + pad + rx * (w - 2 * pad))
-        cy = int(oy + pad + ry * (h - 2 * pad))
-        pygame.draw.circle(surf, C_DOT, (cx, cy), DOT_R)
+    prefix = "face" if kind == 'pip' else "word"
+    img = _get_scaled_img(prefix, value, w - 2 * pad, h - 2 * pad)
+    if img is not None:
+        surf.blit(img, (ox + pad, oy + pad))
+        return
+
+    if kind == 'pip':
+        # Fallback: desenha os pontos com pygame.draw.circle.
+        for rx, ry in DOT_POSITIONS.get(value, []):
+            cx = int(ox + pad + rx * (w - 2 * pad))
+            cy = int(oy + pad + ry * (h - 2 * pad))
+            pygame.draw.circle(surf, C_DOT, (cx, cy), DOT_R)
+    else:
+        # Fallback: renderiza o texto da palavra com a fonte do pygame.
+        text = WORD_NAMES[value]
+        f = _fit_word_font(text, w - 2 * pad, h - 2 * pad)
+        txt_surf = f.render(text, True, C_DOT)
+        tx = ox + (w - txt_surf.get_width()) // 2
+        ty = oy + (h - txt_surf.get_height()) // 2
+        surf.blit(txt_surf, (tx, ty))
 
 
 def tile_rect(tile: Tile, x: int, y: int) -> pygame.Rect:
@@ -163,47 +277,115 @@ def tile_rect(tile: Tile, x: int, y: int) -> pygame.Rect:
     return pygame.Rect(x, y, w, h)
 
 
-# ── Jogo (lógica pura, igual ao original) ──────────────────────────────────────
+# ── Jogo (lógica pura) ──────────────────────────────────────────────────────────
 class DominoGame:
+    """
+    Regras seguidas (ver regulamentos.pdf), adaptadas para o sistema de
+    14 valores (7 números em pontos + 7 números por extenso):
+    - Toda pedra tem um lado PIP (pontos, 0-6) e um lado WORD (a palavra
+      por extenso, "zero".."seis") — nunca ponto-ponto nem palavra-palavra.
+      Total: 7 × 7 = 49 peças.
+    - Encaixe: lado PIP de valor N só conecta com lado WORD de valor N
+      (e vice-versa). Ex.: a pedra com 1 ponto combina com a peça "um".
+    - "Dupla"/carroça: pedra onde o número em pontos é igual ao número
+      por extenso (ex.: 3/três) — os dois lados representam o mesmo valor.
+    - 2 jogadores, individual (não em dupla), 7 pedras cada, 35 no estoque.
+    - Começa quem tiver a pedra 6/seis (a maior dupla); se ninguém tiver
+      nenhuma dupla, começa quem tiver a maior pedra dupla; se ninguém
+      tiver dupla nenhuma, começa quem tiver a pedra de maior soma na mão.
+    - Se algum jogador começar com 4 ou mais "carroças" (peças duplas) na
+      mão, as pedras são repostas e distribuídas novamente.
+    - O jogo (rodada) termina quando alguém "bate" (fica sem pedras) ou
+      "tranca" (ninguém consegue jogar mais).
+    - Pontuação por rodada (regra dos 6 pontos do regulamento):
+        * Batida simples (fechando só uma ponta) ........... 1 ponto
+        * Batida de "carroça" (última pedra é dupla) ....... 2 pontos
+        * "Lá e lô" (pedra simples que fecha as duas pontas)  3 pontos
+        * "Lá e lô de carroça" (dupla que fecha as 2 pontas)  6 pontos
+        * Jogo trancado, vitória por menor soma na mão ...... 1 ponto
+      Vence a partida (match) quem acumular 6 pontos primeiro.
+    """
     NUM_PLAYERS = 2
     HAND_SIZE   = 7
+    MAX_DOUBLES_REDEAL = 4  # regra: 4+ carroças na mão -> reparte tudo
 
-    def __init__(self):
-        self.reset()
+    def __init__(self, forced_starter: Optional[int] = None):
+        self.reset(forced_starter)
 
-    def reset(self):
-        all_tiles = [Tile(a, b) for a in range(7) for b in range(a, 7)]
-        random.shuffle(all_tiles)
-        self.hands = [[] for _ in range(self.NUM_PLAYERS)]
-        for i in range(self.NUM_PLAYERS):
-            self.hands[i] = all_tiles[i * self.HAND_SIZE:(i + 1) * self.HAND_SIZE]
+    def reset(self, forced_starter: Optional[int] = None):
+        # Distribui as pedras; se algum jogador começar com 4+ carroças
+        # (peças duplas), reparte tudo de novo, conforme o regulamento.
+        while True:
+            # 49 peças: todo par (pip, palavra) possível — não é simétrico
+            # como o dominó clássico, já que os dois lados são de tipos
+            # diferentes (pip N/word M é uma peça distinta de pip M/word N).
+            all_tiles = [Tile(p, w) for p in range(7) for w in range(7)]
+            random.shuffle(all_tiles)
+            hands = [[] for _ in range(self.NUM_PLAYERS)]
+            for i in range(self.NUM_PLAYERS):
+                hands[i] = all_tiles[i * self.HAND_SIZE:(i + 1) * self.HAND_SIZE]
+            doubles_ok = all(
+                sum(1 for t in h if t.is_double) < self.MAX_DOUBLES_REDEAL
+                for h in hands
+            )
+            if doubles_ok:
+                break
+
+        self.hands = hands
         self.boneyard = all_tiles[self.NUM_PLAYERS * self.HAND_SIZE:]
         self.board: list[Tile] = []
-        self.left_end:  Optional[int] = None
-        self.right_end: Optional[int] = None
-        self.scores = [0] * self.NUM_PLAYERS
+        self.first_tile: Optional[Tile] = None  # pedra central (1ª jogada), p/ layout em espiral
+        self.left_end = None   # tupla (kind, value) ou None se mesa vazia
+        self.right_end = None  # kind é 'pip' ou 'word'
         self.passes  = 0
-        self.current = self._first_player()
+        self.current = forced_starter if forced_starter is not None else self._first_player()
+        self.round_starter = self.current
         self.message = ""
         self.game_over = False
         self.winner = -1
+        self.win_reason = None        # "domino" | "trancado"
+        self.win_bonus_label = None   # rótulo do tipo de batida
+        self.round_points = 0         # pontos ganhos nesta rodada
 
     def _first_player(self):
-        best = -1; player = 0
+        # a) Quem tiver a pedra 6/seis (pip=6 e word=6) sempre começa
         for i, hand in enumerate(self.hands):
             for t in hand:
-                if t.is_double and t.a > best:
-                    best = t.a; player = i
+                if t.pip_value == 6 and t.word_value == 6:
+                    return i
+        # b) Senão, quem tiver a maior "dupla" (pip_value == word_value)
+        best = -1; player = None
+        for i, hand in enumerate(self.hands):
+            for t in hand:
+                if t.is_double and t.pip_value > best:
+                    best = t.pip_value; player = i
+        if player is not None:
+            return player
+        # Ninguém tem pedra dupla: começa quem tiver a pedra de maior soma
+        best_total = -1; player = 0
+        for i, hand in enumerate(self.hands):
+            for t in hand:
+                if t.total > best_total:
+                    best_total = t.total; player = i
         return player
+
+    @staticmethod
+    def _end_matches(tile: Tile, end) -> bool:
+        """Uma pedra encaixa numa ponta (kind, value) se tiver, do lado
+        OPOSTO ao tipo da ponta, o mesmo número (pip combina com word)."""
+        kind, value = end
+        if kind == 'pip':
+            return tile.word_value == value
+        return tile.pip_value == value
 
     def playable_sides(self, tile: Tile):
         sides = []
         if not self.board:
             sides = ["left"]
         else:
-            if tile.a == self.left_end or tile.b == self.left_end:
+            if self._end_matches(tile, self.left_end):
                 sides.append("left")
-            if tile.a == self.right_end or tile.b == self.right_end:
+            if self._end_matches(tile, self.right_end):
                 sides.append("right")
         return sides
 
@@ -217,22 +399,26 @@ class DominoGame:
         self.hands[player].remove(tile)
         if not self.board:
             tile.horizontal = tile.is_double
+            tile.flipped = False  # pip à esquerda, palavra à direita por padrão
             self.board.append(tile)
-            self.left_end  = tile.a
-            self.right_end = tile.b
+            self.first_tile = tile
+            self.left_end  = (tile.left_kind, tile.left_value)
+            self.right_end = (tile.right_kind, tile.right_value)
         elif side == "left":
-            tile.fits_left(self.left_end)
+            tile.fits_left(*self.left_end)
             tile.horizontal = tile.is_double
             self.board.insert(0, tile)
-            self.left_end = tile.left if not tile.horizontal else tile.top
+            self.left_end = (tile.left_kind, tile.left_value)
         else:
-            tile.fits_right(self.right_end)
+            tile.fits_right(*self.right_end)
             tile.horizontal = tile.is_double
             self.board.append(tile)
-            self.right_end = tile.right if not tile.horizontal else tile.bottom
+            self.right_end = (tile.right_kind, tile.right_value)
 
         self.passes = 0
-        if self._check_win(player):
+        # `sides` foi calculado ANTES da jogada: se tinha os dois lados
+        # disponíveis, essa pedra fechava as duas pontas ("lá e lô").
+        if self._check_win(player, tile, sides):
             return True
         self._next_turn()
         return True
@@ -254,21 +440,44 @@ class DominoGame:
     def _next_turn(self):
         self.current = (self.current + 1) % self.NUM_PLAYERS
 
-    def _check_win(self, player: int) -> bool:
+    def _check_win(self, player: int, played_tile: Tile, sides_used: list) -> bool:
         if not self.hands[player]:
             self.game_over = True
             self.winner    = player
-            self.message   = "Você venceu! 🎉" if player == 0 else "Computador venceu!"
+            self.win_reason = "domino"
+            self.round_points, self.win_bonus_label = self._compute_bonus(played_tile, sides_used)
+            quem = "Você" if player == 0 else "Computador"
+            self.message = f"{quem} bateu! {self.win_bonus_label} (+{self.round_points})"
             return True
         return False
 
+    @staticmethod
+    def _compute_bonus(tile: Tile, sides_used: list):
+        """Calcula pontos e rótulo da batida, conforme o regulamento."""
+        fecha_as_duas = len(sides_used) == 2
+        if tile.is_double and fecha_as_duas:
+            return 6, "Lá e lô de carroça"
+        if tile.is_double:
+            return 2, "Carroça"
+        if fecha_as_duas:
+            return 3, "Lá e lô"
+        return 1, "Batida simples"
+
     def _end_game_by_lock(self):
         self.game_over = True
+        self.win_reason = "trancado"
         totals = [sum(t.total for t in h) for h in self.hands]
-        self.winner = totals.index(min(totals))
-        self.message = ("Empate!" if totals[0] == totals[1] else
-                        "Você venceu por pontos! 🎉" if self.winner == 0 else
-                        "Computador venceu por pontos!")
+        if totals[0] == totals[1]:
+            self.winner = -1
+            self.round_points = 0
+            self.win_bonus_label = "Empate"
+            self.message = "Jogo fechado — empate! Ninguém pontua."
+        else:
+            self.winner = totals.index(min(totals))
+            self.round_points = 1
+            self.win_bonus_label = "Jogo fechado"
+            quem = "Você" if self.winner == 0 else "Computador"
+            self.message = f"Jogo fechado! {quem} venceu por pontos (+1)"
 
     def has_playable(self, player: int) -> bool:
         for t in self.hands[player]:
@@ -295,7 +504,7 @@ class DominoGame:
 # ── Interface mobile ────────────────────────────────────────────────────────────
 class UI:
     # ---- Layout vertical em faixas (topo → base) ----
-    TOP_BAR_H      = 34   # estoque / turno
+    TOP_BAR_H      = 50   # estoque / turno / placar da partida
     OPP_HAND_H     = 66   # mão do computador (viradas p/ baixo)
     BUTTONS_H      = 64   # barra de botões grandes no rodapé
     HAND_LABEL_H   = 22
@@ -309,6 +518,8 @@ class UI:
 
     BONEYARD_BTN = pygame.Rect(6, SCREEN_H - BUTTONS_H + 6, SCREEN_W // 2 - 9, BUTTONS_H - 12)
     PASS_BTN     = pygame.Rect(SCREEN_W // 2 + 3, SCREEN_H - BUTTONS_H + 6, SCREEN_W // 2 - 9, BUTTONS_H - 12)
+
+    MATCH_TARGET_POINTS = 6  # regra: dupla/jogador que acumular 6 pontos vence a partida
 
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
@@ -325,6 +536,13 @@ class UI:
         self.drag_offset = (0, 0)
         self.drag_origin = (0, 0)
         self.drag_moved = False
+        # Estado da partida (várias rodadas, pontuação acumulada)
+        self.match_scores = [0, 0]
+        self.match_over = False
+        self.match_winner = -1
+        self.round_num = 1
+        self.round_scored = False
+        self.next_starter: Optional[int] = None  # próxima rodada: outro jogador
 
     # ── Loop principal ─────────────────────────────────────────────────────────
     def run(self):
@@ -343,6 +561,17 @@ class UI:
                 self.comp_delay = 0
                 g.computer_move()
 
+        if g.game_over and not self.round_scored:
+            self.round_scored = True
+            if g.winner != -1:
+                self.match_scores[g.winner] += g.round_points
+            if max(self.match_scores) >= self.MATCH_TARGET_POINTS:
+                self.match_over = True
+                self.match_winner = 0 if self.match_scores[0] > self.match_scores[1] else 1
+            # regra: rodadas seguintes começam com o jogador seguinte
+            # (sentido anti-horário — com 2 jogadores, é sempre o outro)
+            self.next_starter = 1 - g.round_starter
+
     # ── Eventos (mouse E toque) ──────────────────────────────────────────────────
     def _handle_events(self):
         for event in pygame.event.get():
@@ -351,7 +580,7 @@ class UI:
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
-                    self.game = DominoGame(); self.selected = None
+                    self._start_new_match()
                 if event.key == pygame.K_ESCAPE:
                     self.selected = None
 
@@ -379,7 +608,10 @@ class UI:
         g = self.game
 
         if g.game_over:
-            self.game = DominoGame(); self.selected = None
+            if self.match_over:
+                self._start_new_match()
+            else:
+                self._start_next_round()
             return
 
         if g.current != 0:
@@ -482,21 +714,24 @@ class UI:
         x = self.drag_pos[0] - self.drag_offset[0]
         y = self.drag_pos[1] - self.drag_offset[1]
 
-        over_board = self.BOARD_AREA.collidepoint(self.drag_pos)
-        side = self._board_side_clicked(self.drag_pos) if over_board else None
-        can_drop = side is not None and side in self.game.playable_sides(tile)
-
-        draw_tile(self.screen, tile, x, y, selected=True, playable=can_drop, alpha=230)
+        draw_tile(self.screen, tile, x, y, selected=True, alpha=230)
 
     def _draw_top_bar(self):
         g = self.game
         stk = font_sm.render(f"Estoque: {len(g.boneyard)}", True, C_TEXT_DIM)
-        self.screen.blit(stk, (10, 8))
+        self.screen.blit(stk, (10, 6))
 
         who = "Sua vez" if g.current == 0 else "Vez do PC..."
         col = C_PLAYER if g.current == 0 else C_OPPONENT
         ind = font_sm.render(who, True, col)
-        self.screen.blit(ind, (SCREEN_W - ind.get_width() - 10, 8))
+        self.screen.blit(ind, (SCREEN_W - ind.get_width() - 10, 6))
+
+        # Placar da partida (regra: primeiro a 6 pontos vence) e nº da rodada
+        placar = font_sm.render(
+            f"Você {self.match_scores[0]} × {self.match_scores[1]} PC   "
+            f"(rodada {self.round_num}, meta {self.MATCH_TARGET_POINTS} pts)",
+            True, C_TEXT)
+        self.screen.blit(placar, (SCREEN_W // 2 - placar.get_width() // 2, 6))
 
         if g.message:
             msg = font_sm.render(g.message, True, C_TURN_IND)
@@ -535,10 +770,7 @@ class UI:
 
         positions = self._calc_board_positions()
         for i, (tile, (tx, ty)) in enumerate(zip(g.board, positions)):
-            is_end = (i == 0 or i == len(g.board) - 1)
-            draw_tile(self.screen, tile, tx, ty,
-                      playable=is_end and self.selected is not None and
-                               self.selected in [g.board[0] if i == 0 else g.board[-1]])
+            draw_tile(self.screen, tile, tx, ty)
 
         if positions:
             lx, ly = positions[0]
@@ -547,8 +779,8 @@ class UI:
             lw = TILE_H if lt.horizontal else TILE_W
             rw = TILE_H if rt.horizontal else TILE_W
 
-            ltxt = font_sm.render(f"← {g.left_end}", True, C_TURN_IND)
-            rtxt = font_sm.render(f"{g.right_end} →", True, C_TURN_IND)
+            ltxt = font_sm.render(f"← {_end_label(g.left_end)}", True, C_TURN_IND)
+            rtxt = font_sm.render(f"{_end_label(g.right_end)} →", True, C_TURN_IND)
             if len(g.board) == 1:
                 # As duas pontas coincidem na mesma pedra: separa os
                 # rótulos para os dois lados dela, não sobrepostos.
@@ -558,36 +790,103 @@ class UI:
                 self.screen.blit(ltxt, (lx + lw // 2 - ltxt.get_width() // 2, ly - 18))
                 self.screen.blit(rtxt, (rx + rw // 2 - rtxt.get_width() // 2, ry - 18))
 
+    # ── Layout do tabuleiro em "caminho" (vira ao bater na borda, como no
+    #    dominó físico) ────────────────────────────────────────────────────
+    @staticmethod
+    def _tile_box(tile):
+        w = TILE_H if tile.horizontal else TILE_W
+        h = TILE_W if tile.horizontal else TILE_H
+        return w, h
+
+    def _walk_chain(self, tiles, start_px, start_py, start_dir, bounds, start_cross_half):
+        """Caminha uma cadeia de pedras a partir de um ponto de encaixe
+        (start_px, start_py) na direção start_dir ('E','S','W','N'),
+        virando 90° no sentido horário sempre que a próxima pedra não
+        couber dentro de `bounds` — exatamente como quando o dominó
+        físico chega na borda da mesa e a fileira dobra."""
+        GAP = 4
+        TURN = {'E': 'S', 'S': 'W', 'W': 'N', 'N': 'E'}  # sentido horário
+        min_x, min_y, max_x, max_y = bounds
+        px, py = start_px, start_py
+        direction = start_dir
+        cross_half = start_cross_half
+        positions = []
+
+        for tile in tiles:
+            w, h = self._tile_box(tile)
+            for _ in range(4):  # no máx. 4 tentativas (evita loop infinito)
+                along, cross = (w, h) if direction in ('E', 'W') else (h, w)
+                fits = (
+                    (direction == 'E' and px + along <= max_x) or
+                    (direction == 'W' and px - along >= min_x) or
+                    (direction == 'S' and py + along <= max_y) or
+                    (direction == 'N' and py - along >= min_y)
+                )
+                if fits:
+                    break
+                # Vira 90°: desloca o ponto de encaixe pra fora da pedra
+                # anterior (usa a espessura dela), como uma dobra real.
+                new_dir = TURN[direction]
+                if new_dir == 'S':   py += cross_half
+                elif new_dir == 'N': py -= cross_half
+                elif new_dir == 'E': px += cross_half
+                elif new_dir == 'W': px -= cross_half
+                direction = new_dir
+
+            along, cross = (w, h) if direction in ('E', 'W') else (h, w)
+            if direction == 'E':
+                tx, ty = px, py - cross / 2
+                px += along + GAP
+            elif direction == 'W':
+                tx, ty = px - along, py - cross / 2
+                px -= along + GAP
+            elif direction == 'S':
+                tx, ty = px - cross / 2, py
+                py += along + GAP
+            else:  # 'N'
+                tx, ty = px - cross / 2, py - along
+                py -= along + GAP
+
+            positions.append((tx, ty))
+            cross_half = cross / 2
+
+        return positions
+
     def _calc_board_positions(self):
         g = self.game
         if not g.board:
             return []
 
-        cx = SCREEN_W // 2
-        cy = self.BOARD_AREA.centery
+        board = g.board
+        idx = board.index(g.first_tile) if g.first_tile in board else 0
+        center_tile = board[idx]
+        left_chain  = board[:idx]        # ordem: mais externa -> mais perto do centro
+        right_chain = board[idx + 1:]    # ordem: mais perto do centro -> mais externa
 
-        HGAP, VGAP = 3, 3
-        total_w = sum((TILE_H if t.horizontal else TILE_W) + HGAP for t in g.board)
+        cw, ch = self._tile_box(center_tile)
+        anchor_x = SCREEN_W / 2
+        anchor_y = self.BOARD_AREA.centery
+        center_pos = (anchor_x - cw / 2, anchor_y - ch / 2)
 
-        x = cx - total_w // 2
-        y = cy - TILE_H // 2
-        MAX_X = SCREEN_W - 40
-        MIN_X = 20
-        row_y = y
-        positions = []
+        margin = 16
+        bounds = (
+            self.BOARD_AREA.x + margin,
+            self.BOARD_AREA.y + margin,
+            self.BOARD_AREA.x + self.BOARD_AREA.w - margin,
+            self.BOARD_AREA.y + self.BOARD_AREA.h - margin,
+        )
+        GAP = 4
 
-        for t in g.board:
-            tw = TILE_H if t.horizontal else TILE_W
-            th = TILE_W if t.horizontal else TILE_H
-            if x + tw > MAX_X:
-                x = cx - total_w // 2
-                row_y += th + VGAP + 16
-            if x < MIN_X:
-                x = MIN_X
-            positions.append((x, row_y - (th - TILE_H) // 2))
-            x += tw + HGAP
+        right_positions = self._walk_chain(
+            right_chain, center_pos[0] + cw + GAP, anchor_y, 'E', bounds, ch / 2)
 
-        return positions
+        # left_chain está em ordem "mais externa primeiro"; caminha-se do
+        # centro pra fora, então percorremos invertido e desfazemos no final.
+        left_positions_inner_first = self._walk_chain(
+            list(reversed(left_chain)), center_pos[0] - GAP, anchor_y, 'W', bounds, ch / 2)
+        left_positions = list(reversed(left_positions_inner_first))
+
+        return left_positions + [center_pos] + right_positions
 
     def _draw_hand_area(self):
         g = self.game
@@ -626,13 +925,10 @@ class UI:
                 # será desenhada por cima de tudo em _draw()
                 continue
 
-            sides = g.playable_sides(tile) if g.current == 0 else []
             is_sel = (tile == self.selected)
             if is_sel:
                 y -= 10
-            draw_tile(self.screen, tile, x, y,
-                      selected=is_sel,
-                      playable=bool(sides) and g.current == 0)
+            draw_tile(self.screen, tile, x, y, selected=is_sel)
 
     def _draw_buttons(self):
         g = self.game
@@ -732,6 +1028,31 @@ class UI:
             if self.game.message == msg:
                 self.game.message = ""
         threading.Thread(target=clear, daemon=True).start()
+
+    def _reset_drag_state(self):
+        self.dragging_tile = None
+        self.drag_moved = False
+        self.selected = None
+
+    def _start_new_match(self):
+        """Zera o placar e começa uma partida nova do zero."""
+        self.match_scores = [0, 0]
+        self.match_over = False
+        self.match_winner = -1
+        self.round_num = 1
+        self.round_scored = False
+        self.next_starter = None
+        self.game = DominoGame()
+        self._reset_drag_state()
+
+    def _start_next_round(self):
+        """Mantém o placar da partida e começa a próxima rodada. Regra:
+        a rodada seguinte começa com o outro jogador (sentido anti-horário,
+        que com 2 jogadores é simplesmente alternar)."""
+        self.round_num += 1
+        self.round_scored = False
+        self.game = DominoGame(forced_starter=self.next_starter)
+        self._reset_drag_state()
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────────────
