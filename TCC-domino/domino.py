@@ -13,24 +13,24 @@ SCREEN_W, SCREEN_H = 400, 820
 FPS = 60
 
 # Paleta
-C_BG         = (20, 60, 30)
-C_FELT       = (28, 80, 42)
-C_BONE       = (245, 238, 220)
-C_BONE_DARK  = (210, 200, 180)
-C_DOT        = (30, 25, 20)
-C_DIVIDER    = (160, 148, 128)
+C_BG         = (243, 248, 254)#ok
+C_FELT       = (243, 248, 254)#ok
+C_BONE       = (253, 254, 255)#ok
+C_BONE_DARK  = (201, 201, 209)#ok
+C_DOT        = (1, 162, 154)#ok
+C_DIVIDER    = (201, 201, 209)#ok
 C_HIGHLIGHT  = (255, 220, 80)
-C_PLAYABLE   = (120, 220, 120)
-C_BTN        = (50, 140, 70)
+C_PLAYABLE   = (1, 162, 154)
+C_BTN        = (142, 92, 255)#ok
 C_BTN_HOV    = (70, 180, 90)
-C_BTN_DIS    = (40, 80, 50)
-C_BTN_TXT    = (240, 240, 230)
-C_TEXT       = (230, 230, 210)
-C_TEXT_DIM   = (140, 160, 130)
-C_SCORE_BG   = (15, 45, 22)
-C_OPPONENT   = (180, 100, 40)
-C_PLAYER     = (60, 140, 200)
-C_TURN_IND   = (255, 200, 60)
+C_BTN_DIS    = (106, 72, 185)#ok
+C_BTN_TXT    = (250, 250, 250)#ok
+C_TEXT       = (1, 162, 154)#ok
+C_TEXT_DIM   = (250, 162, 154)#ok
+C_SCORE_BG   = (77, 203, 192)#ok
+C_OPPONENT   = (1, 162, 154)#ok
+C_PLAYER     = (250, 250, 250)#ok
+C_TURN_IND   = (250, 250, 250)
 
 # Tamanho das pedras (reduzido para caber várias por linha na tela estreita)
 TILE_W, TILE_H = 48, 92
@@ -59,7 +59,7 @@ font_xl = _font("segoeui", 30, bold=True)
 # Nomes por extenso de cada valor (0 a 6) — usados na "metade palavra" das
 # novas peças (ver regras: metade das peças usa pontos, metade usa a
 # palavra por extenso, e o encaixe é sempre ponto-N com palavra-N).
-WORD_NAMES = ["zero", "um", "dois", "três", "quatro", "cinco", "seis"]
+WORD_NAMES = ["álcool", "fenol", "cetona", "éter", "éster", "ácido", "áldeido"]
 
 _word_font_cache: dict = {}
 
@@ -213,7 +213,7 @@ def draw_tile(surface, tile: Tile, x: int, y: int,
 
     shadow = pygame.Surface((w + 4, h + 4), pygame.SRCALPHA)
     pygame.draw.rect(shadow, (0, 0, 0, 80), (4, 4, w, h), border_radius=CORNER_R)
-    surface.blit(shadow, (x - 2, y - 2))
+    surface.blit(shadow, (x - 3, y - 3))
 
     border_col = C_HIGHLIGHT if selected else C_BONE_DARK
     border_w   = 3 if selected else 1
@@ -507,8 +507,8 @@ class UI:
     TOP_BAR_H      = 50   # estoque / turno / placar da partida
     OPP_HAND_H     = 66   # mão do computador (viradas p/ baixo)
     BUTTONS_H      = 64   # barra de botões grandes no rodapé
-    HAND_LABEL_H   = 22
-    PLAYER_HAND_H  = 100  # mão do jogador
+    HAND_LABEL_H   = 20
+    PLAYER_HAND_H  = 130  # mão do jogador
 
     BOARD_Y0 = TOP_BAR_H + OPP_HAND_H
     BOARD_Y1 = SCREEN_H - BUTTONS_H - HAND_LABEL_H - PLAYER_HAND_H
