@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar, csrf, icon %}
+{% block title %}Nova partida · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Nova partida", "teal", hint="Escolha com quem ligar") }}
+<form class="pad setup stack" method="post">
+  {{ csrf() }}
+  <p class="lbl">Escolha o modo</p>
+  <label class="mode">
+    <input type="radio" name="mode" value="online">
+    <span class="ico">{{ icon('wifi') }}</span>
+    <span>
+      <strong>DUPLA</strong>
+      <p>Jogue com outra pessoa (sala com código)</p>
+    </span>
+    <span class="dot"></span>
+  </label>
+  <label class="mode">
+    <input type="radio" name="mode" value="ai" checked>
+    <span class="ico">{{ icon('bot') }}</span>
+    <span>
+      <strong>IA</strong>
+      <p>Desafie a Inteligência Artificial</p>
+    </span>
+    <span class="dot"></span>
+  </label>
+  <div class="diff">
+    <p class="lbl">Dificuldade</p>
+    <div class="choices">
+      {% for key, label in [("facil","FÁCIL"),("medio","MÉDIO"),("dificil","DIFÍCIL")] %}
+        <label class="chip">
+          <input type="radio" name="difficulty" value="{{ key }}" {% if key == "facil" %}checked{% endif %}>
+          {{ label }}
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+  <p class="tiny center muted">Cada jogador começa com 7 peças. Dicas só no modo Fácil.</p>
+  <button class="btn" type="submit">{{ icon('play') }} JOGAR</button>
+</form>
+<form class="pad stack tight" method="post" data-verify>
+  {{ csrf() }}
+  <div class="field-block">
+    <label class="field">
+      {{ icon('hash') }}
+      <input name="codigo" data-rule="codigo" placeholder="código da sala" maxlength="8" autocapitalize="characters" required>
+      <span class="tick" aria-hidden="true"></span>
+    </label>
+    <p class="field-msg"></p>
+  </div>
+  <button class="btn ghost" type="submit" disabled>ENTRAR NA SALA</button>
+</form>
+{% if opens %}
+  <div class="pad">
+    <p class="lbl">Partidas em andamento</p>
+    <div class="stack tight">
+      {% for item in opens %}
+        <a class="rule" href="{{ url_for('play.lobby', match_id=item.id) if item.status == 'waiting' else url_for('play.match', match_id=item.id) }}">
+          <span class="menu-ico">{{ icon('play') }}</span>
+          <p>{% if item.mode == 'ai' %}Contra a IA{% else %}Sala {{ item.room_code }}{% endif %} · {{ item.status }}</p>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

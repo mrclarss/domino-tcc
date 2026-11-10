@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar %}
+{% block title %}Termos · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Termos", "purple") }}
+<div class="pad prose">
+  <p>O Liga! é um jogo de estudo. As contas, partidas e pontuações ficam neste servidor, no banco SQLite local.</p>
+  <p>A senha é guardada só como hash. Não há envio real de e-mail: o código de confirmação aparece na própria tela para o aplicativo funcionar sem um serviço externo.</p>
+  <p>As explicações de química são um resumo para jogar. Elas não substituem o material da aula.</p>
+  <p>Fotos de perfil ficam na pasta do servidor e podem ser trocadas por um dos axolotls do jogo.</p>
+</div>
+{% endblock %}

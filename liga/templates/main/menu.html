@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar, tabbar, menuitem, icon %}
+{% block phone_class %}with-tabs{% endblock %}
+{% block title %}Menu · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Menu", "purple", hint="O que você quer fazer") }}
+<nav class="pad menu-list grow">
+  {{ menuitem(url_for('play.new'), 'play', 'Nova partida', 'Online ou contra a IA') }}
+  {{ menuitem(url_for('study.review'), 'flask-conical', 'Revisão', 'Funções oxigenadas') }}
+  {{ menuitem(url_for('main.tutorial'), 'circle-help', 'Como jogar', 'Regras da mesa') }}
+  {{ menuitem(url_for('main.ranking'), 'trophy', 'Ranking', 'Geral e amigos') }}
+  {{ menuitem(url_for('main.played'), 'history', 'Partidas', 'Suas mesas') }}
+  {{ menuitem(url_for('main.suggest'), 'lightbulb', 'Sugestão', 'Conte o que melhorar') }}
+  {% if current_user %}
+    {{ menuitem(url_for('profile.view'), 'user', 'Perfil', '@' ~ current_user.username) }}
+    {{ menuitem(url_for('profile.levels'), 'award', 'Níveis', 'Sua trilha de vitórias') }}
+  {% else %}
+    {{ menuitem(url_for('auth.login'), 'user', 'Entrar', 'Salve suas vitórias') }}
+  {% endif %}
+  {{ menuitem(url_for('settings.index'), 'settings', 'Configurações', 'Conta, tema e avisos') }}
+  {% if current_user %}
+    <form method="post" action="{{ url_for('auth.logout') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="menu-leave" type="submit">
+        <span class="menu-ico">{{ icon('log-out') }}</span>
+        <span class="menu-copy">Sair</span>
+      </button>
+    </form>
+  {% endif %}
+</nav>
+{{ tabbar('menu') }}
+{% endblock %}

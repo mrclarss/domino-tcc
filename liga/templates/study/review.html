@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar, icon %}
+{% block title %}Revisão · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Revisão", "purple", hint="Funções oxigenadas") }}
+<div class="pad">
+  <article class="rule">
+    <span class="menu-ico">{{ icon('flask-conical') }}</span>
+    <p>A química orgânica estuda os compostos de carbono. Neste jogo, cada face do dominó é uma função oxigenada: o oxigênio entra no esqueleto de um jeito diferente, e só encaixa função igual.</p>
+  </article>
+  <div class="mols">
+    <article class="mol">
+      <h3>{{ hydrocarbon.title }}</h3>
+      <pre class="struct">{{ hydrocarbon.struct }}</pre>
+      <small>{{ hydrocarbon.note }}</small>
+    </article>
+    {% for number, item in functions.items() %}
+      <article class="mol">
+        <span class="pip fn-{{ number }}">{{ number }}</span>
+        <h3>{{ item.name }}</h3>
+        <pre class="struct">{{ item.struct }}</pre>
+        <small>{{ item.formula }}</small>
+        <p class="hint">{{ item.detail }}</p>
+      </article>
+    {% endfor %}
+  </div>
+  <p class="lbl">Nomenclaturas</p>
+  <div class="stack">
+    {% for item in functions.values() %}
+      <article class="rule">
+        <p><strong>{{ item.name }}</strong> — {{ item.suffix }}. Exemplo: {{ item.example }}.</p>
+      </article>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

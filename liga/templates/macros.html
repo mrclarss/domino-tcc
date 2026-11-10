@@ -1,0 +1,38 @@
+{% macro icon(name) %}
+<svg class="icon" aria-hidden="true"><use href="{{ url_for('static', filename='icons.svg') }}#{{ name }}"></use></svg>
+{% endmacro %}
+
+{% macro topbar(title, tone='teal', back=none, hint=none) %}
+<header class="topbar {{ tone }}">
+  <a class="back" href="{{ back or url_for('main.home') }}" aria-label="Voltar">{{ icon('chevron-left') }}</a>
+  <div class="top-copy">
+    <h1>{{ title }}</h1>
+    {% if hint %}<p class="tiny">{{ hint }}</p>{% endif %}
+  </div>
+</header>
+{% endmacro %}
+
+{% macro csrf() %}
+{{ csrf_input() }}
+{% endmacro %}
+
+{% macro menuitem(href, glyph, title, hint) %}
+<a href="{{ href }}">
+  <span class="menu-ico">{{ icon(glyph) }}</span>
+  <span class="menu-copy">{{ title }}{% if hint %}<small>{{ hint }}</small>{% endif %}</span>
+  {{ icon('chevron-right') }}
+</a>
+{% endmacro %}
+
+{% macro tabbar(active) %}
+<nav class="tabbar">
+  <a class="tab {% if active == 'home' %}on{% endif %}" href="{{ url_for('main.home') }}">
+    {{ icon('home') }}
+    INÍCIO
+  </a>
+  <a class="tab {% if active == 'menu' %}on{% endif %}" href="{{ url_for('main.menu') }}">
+    {{ icon('menu') }}
+    MENU
+  </a>
+</nav>
+{% endmacro %}

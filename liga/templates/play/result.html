@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Fim de jogo · Liga!{% endblock %}
+{% block content %}
+<section class="pad center lobby result-page">
+  <h1 class="word">FIM DE JOGO!</h1>
+  <div class="mascot-block">
+    {% set fallback = url_for('main.mascot', mood=mood, cor='rosa' if mood == 'feliz' else 'lilas') %}
+    {% set pic = art('mascote-yinyang.png', '') if winner == 0 else art('mascote-frasco.png', '') %}
+    {% if pic.endswith('.png') %}
+    <img class="art" src="{{ pic }}" alt="{{ 'Dois axolotls em equilíbrio, empate' if winner == 0 else 'Axolotl no frasco' }}">
+    {% else %}
+    <img src="{{ fallback }}" alt="Axolotl {{ mood }}">
+    {% endif %}
+  </div>
+  <p><strong>{{ blurb }}</strong></p>
+  <div class="scoreboard">
+    <p style="margin:0 0 4px">
+      {% if winner == 0 %}
+        <strong>Empate</strong>
+      {% elif winner == viewer %}
+        <strong>{{ names[viewer] }}</strong> ganhou!
+      {% else %}
+        <strong>{{ names[winner] }}</strong> ganhou!
+      {% endif %}
+    </p>
+    <p class="tiny" style="color:var(--purple);margin-top:0">PONTUAÇÃO FINAL</p>
+    <div class="versus">
+      <div class="pill-score purple {% if winner == 1 %}you-win{% endif %}">
+        <small>{{ names[1] }}</small>
+        <b>{{ match.p1_points }}</b>
+        <small>{{ match.p1_pips }} peças na mão</small>
+      </div>
+      <span class="muted">X</span>
+      <div class="pill-score teal {% if winner == 2 %}you-win{% endif %}">
+        <small>{{ names[2] }}</small>
+        <b>{{ match.p2_points }}</b>
+        <small>{{ match.p2_pips }} peças na mão</small>
+      </div>
+    </div>
+    <p class="tiny muted">Cada acerto vale 5 pontos. Quem vence soma os seus pontos e metade dos do adversário. Se a mesa travar, vence quem tiver menos peças.</p>
+  </div>
+  <form method="post" action="{{ url_for('play.new') }}" class="stack">
+    {{ csrf() }}
+    <input type="hidden" name="mode" value="{{ match.mode }}">
+    <input type="hidden" name="difficulty" value="{{ match.difficulty or 'facil' }}">
+    <button class="btn teal" type="submit">
+      JOGAR NOVAMENTE
+    </button>
+  </form>
+  <a class="btn ghost" href="{{ url_for('main.home') }}">VOLTAR AO MENU</a>
+</section>
+{% endblock %}

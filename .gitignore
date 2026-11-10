@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+instance/
+.venv/
+venv/
+.env
+.env.*
+*.sqlite
+*.sqlite-*
+secret_key
+.pytest_cache/

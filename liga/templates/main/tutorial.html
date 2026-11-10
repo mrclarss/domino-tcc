@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar, icon %}
+{% block title %}Como jogar · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Como Jogar", "purple", hint="Quatro regras da mesa") }}
+<div class="pad">
+  <div class="stack">
+    {% for rule in rules %}
+      <article class="rule">
+        <span class="step">{{ loop.index }}</span>
+        <p>{{ rule }}</p>
+      </article>
+    {% endfor %}
+  </div>
+  <p class="lbl">Estude um pouco antes</p>
+  <a class="rule" href="{{ url_for('study.review') }}">
+    <span class="menu-ico">{{ icon('flask-conical') }}</span>
+    <p>Cada número do dominó é uma função oxigenada. Vale revisar antes de ligar a primeira peça.</p>
+  </a>
+</div>
+{% endblock %}

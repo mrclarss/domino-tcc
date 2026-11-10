@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "macros.html" import tabbar, csrf, icon %}
+{% block phone_class %}with-tabs{% endblock %}
+{% block title %}Ranking · Liga!{% endblock %}
+{% block content %}
+<header class="topbar purple">
+  <span class="back" aria-hidden="true">{{ icon('trophy') }}</span>
+  <div class="top-copy">
+    <h1>RANKING</h1>
+    <p class="tiny">Veja onde você está no ranking</p>
+  </div>
+  {% if position %}
+    <div class="level-pill">#{{ position }}</div>
+  {% endif %}
+</header>
+<div class="pad grow">
+  <div class="seg">
+    <a class="{% if tab == 'geral' %}on{% endif %}" href="{{ url_for('main.ranking') }}">geral</a>
+    <a class="{% if tab == 'amigos' %}on{% endif %}" href="{{ url_for('main.ranking', aba='amigos') }}">amigos</a>
+  </div>
+  {% if tab == 'amigos' %}
+    {% if current_user %}
+      <form method="post" action="{{ url_for('main.add_friend') }}" class="stack tight">
+        {{ csrf() }}
+        <label class="field">
+          {{ icon('user-plus') }}
+          <input name="username" placeholder="adicionar @usuario" required>
+        </label>
+        <button class="btn" type="submit">CONVIDAR</button>
+      </form>
+      {% for item in pending %}
+        <form method="post" action="{{ url_for('main.answer_friend', request_id=item.id) }}" class="row">
+          {{ csrf() }}
+          <span>{{ item.display_name }}</span>
+          <button class="chip-btn" name="aceitar" value="1">Aceitar</button>
+          <button class="text-btn" name="aceitar" value="0">Recusar</button>
+        </form>
+      {% endfor %}
+    {% else %}
+      <p class="muted">Entre para ver e adicionar amigos.</p>
+    {% endif %}
+  {% endif %}
+  <div class="list">
+    {% for row in rows %}
+      <article class="row {% if current_user and row.id == current_user.id %}you{% endif %}">
+        <span class="pos">{{ loop.index }}</span>
+        <img class="avatar" src="{{ url_for('profile.avatar_image', user_id=row.id) }}" alt="">
+        <strong>{{ row.display_name }}</strong>
+        <span class="score">{{ icon('sparkles') }} {{ row.points }}</span>
+      </article>
+    {% else %}
+      <p class="muted">Ninguém por aqui ainda.</p>
+    {% endfor %}
+  </div>
+</div>
+{{ tabbar('home') }}
+{% endblock %}

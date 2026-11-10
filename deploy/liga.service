@@ -1,0 +1,28 @@
+[Unit]
+Description=Liga! (Flask + gunicorn)
+After=network.target
+
+[Service]
+User=liga
+Group=liga
+WorkingDirectory=/var/www/liga/app
+EnvironmentFile=/var/www/liga/.env
+ExecStart=/var/www/liga/venv/bin/gunicorn -w 1 --threads 8 -b 127.0.0.1:8130 --timeout 60 --access-logfile - run:app
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/liga/instance
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

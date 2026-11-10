@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar, tabbar %}
+{% block phone_class %}with-tabs{% endblock %}
+{% block title %}Partidas · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Partidas", "teal", hint="Suas mesas") }}
+<div class="pad grow">
+  <div class="list">
+    {% for card in cards %}
+      <a class="row link" href="{{ card.href }}">
+        <span class="tag {{ card.tone }}">{{ card.label }}</span>
+        <span>
+          <strong>vs {{ card.opponent }}</strong>
+          <small>{{ card.detail }}</small>
+        </span>
+        <span class="score">{{ card.points }} pts</span>
+      </a>
+    {% else %}
+      <p class="muted">Você ainda não começou uma partida.</p>
+    {% endfor %}
+  </div>
+</div>
+{{ tabbar('menu') }}
+{% endblock %}

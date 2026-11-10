@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar, tabbar, csrf, menuitem, icon %}
+{% block phone_class %}with-tabs{% endblock %}
+{% block title %}Configurações · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Configurações", "purple", hint="Conta, tema e avisos") }}
+<div class="pad grow">
+  {% if user %}
+    <p class="lbl">Conta</p>
+    <nav class="menu-list">
+      {{ menuitem(url_for('profile.edit'), 'pencil', 'Editar perfil') }}
+      {{ menuitem(url_for('settings.email'), 'mail', 'Alterar e-mail') }}
+      {{ menuitem(url_for('settings.password'), 'key-round', 'Alterar senha') }}
+      {{ menuitem(url_for('profile.data'), 'id-card', 'Dados pessoais') }}
+    </nav>
+    <form method="post" class="stack">
+      {{ csrf() }}
+      <p class="lbl">Aparência</p>
+      <div class="choices pair">
+        <label class="chip">
+          <input type="radio" name="theme" value="light" {% if user.theme != 'dark' %}checked{% endif %}>
+          {{ icon('sun') }} CLARO
+        </label>
+        <label class="chip">
+          <input type="radio" name="theme" value="dark" {% if user.theme == 'dark' %}checked{% endif %}>
+          {{ icon('moon') }} ESCURO
+        </label>
+      </div>
+      <label class="switch">
+        <span><strong>Som</strong><small class="muted">Toque ao ligar uma peça</small></span>
+        <input type="checkbox" name="sound" value="1" {% if user.sound_on %}checked{% endif %}>
+      </label>
+      <label class="switch">
+        <span><strong>Notificações</strong><small class="muted">Lembretes de estudo</small></span>
+        <input type="checkbox" name="notify" value="1" {% if user.notify_on %}checked{% endif %}>
+      </label>
+      <button class="btn" type="submit">SALVAR</button>
+    </form>
+  {% else %}
+    <a class="btn" href="{{ url_for('auth.login') }}">ENTRAR</a>
+  {% endif %}
+  <p class="lbl">Outras opções</p>
+  <nav class="menu-list">
+    {{ menuitem(url_for('main.terms'), 'shield', 'Termos de uso e privacidade') }}
+  </nav>
+</div>
+{{ tabbar('menu') }}
+{% endblock %}

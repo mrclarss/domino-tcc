@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar, tabbar, csrf, icon %}
+{% block phone_class %}with-tabs{% endblock %}
+{% block title %}Sugestão · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Sugestão", "purple", hint="Conte o que melhorar") }}
+<form class="pad stack" method="post" data-verify>
+  {{ csrf() }}
+  <div class="field-block">
+    <label class="field area">
+      {{ icon('lightbulb') }}
+      <textarea name="texto" data-rule="sugestao" maxlength="400" placeholder="Uma ideia, um erro ou algo que faltou" required></textarea>
+      <span class="tick" aria-hidden="true"></span>
+    </label>
+    <p class="field-msg"></p>
+  </div>
+  <button class="btn" type="submit">ENVIAR</button>
+</form>
+<div class="pad grow">
+  {% if rows %}
+    <p class="lbl">As suas</p>
+    <div class="list">
+      {% for row in rows %}
+        <article class="row">
+          <span>
+            <strong>{{ row.body }}</strong>
+            <small>{{ row.when }}</small>
+          </span>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{{ tabbar('menu') }}
+{% endblock %}

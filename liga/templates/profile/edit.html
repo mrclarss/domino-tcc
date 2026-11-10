@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, icon %}
+{% set tones = {"teal": "#01a29a", "roxo": "#8e5cff", "mar": "#3d7ea6", "noite": "#243056"} %}
+{% block title %}Editar perfil · Liga!{% endblock %}
+{% block content %}
+<header class="banner" style="background: {{ tones.get(user.banner, '#01a29a') }}">
+  <a class="icon-btn left" href="{{ url_for('profile.view') }}" aria-label="Cancelar">{{ icon('chevron-left') }}</a>
+  <p class="tiny" style="letter-spacing:.08em">EDITAR PERFIL</p>
+  <img class="avatar lg" src="{{ url_for('profile.avatar_image', user_id=user.id) }}" alt="">
+  <h1>{{ user.display_name }}</h1>
+  <p>@{{ user.username }}</p>
+  <span class="level-pill">Nível {{ level.level }}</span>
+</header>
+<form class="pad stack" method="post" enctype="multipart/form-data" data-verify data-check="{{ url_for('auth.available') }}">
+  {{ csrf() }}
+  <p class="lbl">Escolha sua foto</p>
+  <div class="faces">
+    {% if user.avatar == "custom" %}
+      <label class="preset">
+        <input type="radio" name="avatar" value="custom" checked>
+        <img src="{{ url_for('profile.avatar_image', user_id=user.id) }}" alt="Foto atual">
+      </label>
+    {% endif %}
+    {% for key, colors in palette.items() %}
+      <label class="preset" style="background: {{ colors[0] }}">
+        <input type="radio" name="avatar" value="{{ key }}" {% if user.avatar == key %}checked{% endif %}>
+        <img src="{{ url_for('main.mascot', mood='feliz', cor=key) }}" alt="{{ key }}">
+      </label>
+    {% endfor %}
+  </div>
+  <label class="tiny">Escolher foto da galeria
+    <input type="file" name="foto" accept="image/png,image/jpeg,image/webp">
+  </label>
+  <p class="lbl">Escolher banner</p>
+  <div class="swatches">
+    {% for key, color in banners.items() %}
+      <label class="swatch" style="background: {{ color }}">
+        <input type="radio" name="banner" value="{{ key }}" {% if user.banner == key %}checked{% endif %}>
+      </label>
+    {% endfor %}
+  </div>
+  <p class="lbl">Informações básicas</p>
+  <div class="field-block">
+    <label class="field"><input name="nome" data-rule="nome" value="{{ user.display_name }}" maxlength="40" required><span class="tick" aria-hidden="true"></span></label>
+    <p class="field-msg"></p>
+  </div>
+  <div class="field-block">
+    <label class="field"><input name="username" data-rule="username" data-live="1" value="{{ user.username }}" required><span class="tick" aria-hidden="true"></span></label>
+    <p class="field-msg"></p>
+  </div>
+  <div class="field-block">
+    <label class="field area"><textarea name="bio" data-rule="bio" data-optional="1" maxlength="140" placeholder="Uma frase sobre você">{{ user.bio }}</textarea><span class="tick" aria-hidden="true"></span></label>
+    <p class="field-msg"></p>
+  </div>
+  <button class="btn" type="submit" disabled>SALVAR</button>
+</form>
+{% endblock %}

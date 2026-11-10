@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "macros.html" import tabbar, icon %}
+{% set tones = {"teal": "#01a29a", "roxo": "#8e5cff", "mar": "#3d7ea6", "noite": "#243056"} %}
+{% block phone_class %}with-tabs{% endblock %}
+{% block title %}Perfil · Liga!{% endblock %}
+{% block content %}
+<header class="banner" style="background: {{ tones.get(user.banner, '#01a29a') }}">
+  <a class="icon-btn left" href="{{ url_for('main.home') }}" aria-label="Voltar">{{ icon('chevron-left') }}</a>
+  <a class="icon-btn right" href="{{ url_for('profile.edit') }}" aria-label="Editar perfil">{{ icon('pencil') }}</a>
+  <p class="eyebrow">PERFIL</p>
+  <div class="avatar-wrap">
+    <img class="avatar lg" src="{{ url_for('profile.avatar_image', user_id=user.id) }}" alt="">
+  </div>
+  <h1>{{ user.display_name }}</h1>
+  <p>@{{ user.username }}</p>
+  <p>{{ user.bio or "Personalize o seu perfil" }}</p>
+  <span class="level-pill">Nível {{ level.level }}</span>
+</header>
+<section class="stats">
+  <article class="statbox"><b>{{ user.wins }}</b><span>Vitórias</span></article>
+  <article class="statbox"><b>{{ user.losses }}</b><span>Derrotas</span></article>
+  <article class="statbox"><b>{{ user.draws }}</b><span>Empates</span></article>
+  <article class="statbox"><b>{{ user.points }}</b><span>Pontos ligados</span></article>
+</section>
+<div class="pad">
+  <a class="btn" href="{{ url_for('profile.levels') }}">{{ icon('award') }} VER NÍVEIS</a>
+  <p class="lbl">Últimas partidas</p>
+  <div class="list">
+    {% for item in recent %}
+      {% set slot = 1 if item.player1_id == user.id else 2 %}
+      <article class="row">
+        {% if item.winner_slot == 0 %}
+          <span class="tag draw">Empate</span>
+        {% elif item.winner_slot == slot %}
+          <span class="tag win">Vitória</span>
+        {% else %}
+          <span class="tag loss">Derrota</span>
+        {% endif %}
+        <span class="score">{{ item.p1_points if slot == 1 else item.p2_points }} pts</span>
+      </article>
+    {% else %}
+      <p class="tiny muted">Você ainda não fechou uma mesa.</p>
+    {% endfor %}
+  </div>
+</div>
+{{ tabbar('menu') }}
+{% endblock %}

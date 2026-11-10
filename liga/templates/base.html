@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="csrf" content="{{ csrf_token }}">
+  <meta name="theme-color" content="#01a29a">
+  <title>{% block title %}Liga!{% endblock %}</title>
+  <link rel="icon" href="{{ art('logo-redondo.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/notyf.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=24">
+</head>
+<body data-theme="{{ theme }}">
+  <div class="stage">
+    <div class="phone {% block phone_class %}{% endblock %}">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+  <script id="liga-flashes" type="application/json">{{ get_flashed_messages(with_categories=true) | tojson }}</script>
+  <script src="{{ url_for('static', filename='vendor/notyf.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/ui.js') }}?v=15"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

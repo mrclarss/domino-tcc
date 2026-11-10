@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, csrf %}
+{% block phone_class %}table{% endblock %}
+{% block title %}Mesa · Liga!{% endblock %}
+{% block content %}
+<div id="mesa" data-match="{{ match.id }}" data-sound="{{ 1 if sound else 0 }}" data-icons="{{ url_for('static', filename='icons.svg') }}">
+  <header class="play-top">
+    <form method="post" action="{{ url_for('play.leave', match_id=match.id) }}" data-leave>
+      {{ csrf() }}
+      <button class="leave-btn" type="submit" aria-label="Sair da partida" title="Sair da partida">{{ icon('log-out') }}<span>Sair</span></button>
+    </form>
+    <div class="pslot" id="p1"></div>
+    <div class="stats">
+      <p class="timer" id="timer" aria-live="polite">⏱ --</p>
+      <p class="boneyard" title="Peças no cemitério">🂠 <b id="bone">0</b></p>
+    </div>
+    <div class="pslot" id="p2"></div>
+  </header>
+  <div class="play-mid">
+    <p class="turn-label" id="turn">Abrindo a mesa…</p>
+    <p class="chat-live" id="chat-live" hidden></p>
+    <div class="announce" id="announce" hidden></div>
+    <div class="toast" id="toast"></div>
+    <div class="chain" id="chain"></div>
+    <details class="log"><summary>Histórico</summary><div id="log"></div></details>
+  </div>
+  <div class="hand-sheet">
+    <p class="hand-tab">Sua mão</p>
+    <div class="chat-drawer" id="chat-drawer" hidden>
+      <div class="reacts" id="phrases"></div>
+      <div class="reacts" id="emojis"></div>
+    </div>
+    <div class="hand" id="hand"></div>
+    <div class="hand-actions">
+      <button class="btn mint" id="draw" type="button" disabled>{{ icon('plus') }} COMPRAR</button>
+      <button class="btn plain" id="pass" type="button" disabled>PASSAR {{ icon('arrow-right') }}</button>
+      <button class="chat-toggle" id="chat-toggle" type="button" aria-expanded="false" aria-controls="chat-drawer" title="Reações">💬</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/board-layout.js') }}?v=21"></script>
+<script src="{{ url_for('static', filename='js/game.js') }}?v=21"></script>
+{% endblock %}

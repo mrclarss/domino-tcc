@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar, tabbar %}
+{% block phone_class %}with-tabs{% endblock %}
+{% block title %}Níveis · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Níveis", "purple", url_for('profile.view'), "Confira em que nível você está") }}
+<section class="pad">
+  <div class="row level-card">
+    <img class="avatar lg" src="{{ url_for('profile.avatar_image', user_id=user.id) }}" alt="">
+    <div>
+      <strong>{{ user.display_name }}</strong>
+      <p class="tiny">@{{ user.username }}</p>
+      <p class="tiny">{{ user.wins }} vitórias</p>
+      <span class="level-pill ink">Nível {{ level.level }}</span>
+    </div>
+  </div>
+  <p class="lbl">PRÓXIMO NÍVEL</p>
+  {% if level.next_level %}
+    <div class="level-scale">
+      <span>{{ level.level }}</span><span>{{ level.next_level }}</span>
+    </div>
+    <div class="progress"><span style="width: {{ level.percent }}%"></span></div>
+    <p class="tiny muted">faltam mais {{ level.missing }} vitórias</p>
+  {% else %}
+    <div class="progress"><span style="width:100%"></span></div>
+    <p class="tiny muted">Você chegou ao último nível.</p>
+  {% endif %}
+  <p class="quote">“{{ level.quote }}”</p>
+  <div class="mascot-block">
+    <img src="{{ url_for('main.mascot', mood='feliz', cor='sol') }}" alt="">
+  </div>
+</section>
+{{ tabbar('menu') }}
+{% endblock %}

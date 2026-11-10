@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Não encontrado · Liga!{% endblock %}
+{% block content %}
+<section class="pad center lobby">
+  <div class="mascot-block">
+    <img src="{{ url_for('main.mascot', mood='triste', cor='lilas') }}" alt="Axolotl sem sinal">
+  </div>
+  <h1 class="word">404</h1>
+  <p class="muted">Essa página não existe.</p>
+  <a class="btn" href="{{ url_for('main.home') }}">VOLTAR AO INÍCIO</a>
+</section>
+{% endblock %}

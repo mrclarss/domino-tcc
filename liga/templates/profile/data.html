@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "macros.html" import topbar, tabbar %}
+{% block phone_class %}with-tabs{% endblock %}
+{% block title %}Dados · Liga!{% endblock %}
+{% block content %}
+{{ topbar("Dados pessoais", "teal", url_for('profile.view'), "Veja seus dados") }}
+<div class="pad grow list">
+  {% for label, value in rows %}
+    <article class="row">
+      <span class="muted">{{ label }}</span>
+      <strong>{{ value }}</strong>
+    </article>
+  {% endfor %}
+</div>
+{{ tabbar('menu') }}
+{% endblock %}
